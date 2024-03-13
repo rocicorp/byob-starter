@@ -2,12 +2,11 @@ import {nanoid} from 'nanoid';
 import React, {useEffect, useRef, useState} from 'react';
 import ReactDOM from 'react-dom/client';
 import {DeepReadonlyObject, Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {M, mutators} from './mutators.js';
+import {M, mutators} from './mutators';
 import {Message} from 'shared';
 import {useSubscribe} from 'replicache-react';
-
+import Pusher from 'pusher-js';
 async function init() {
-  // See https://doc.replicache.dev/licensing for how to get a license key.
   const licenseKey =
     import.meta.env.VITE_REPLICACHE_LICENSE_KEY || TEST_LICENSE_KEY;
   if (!licenseKey) {
@@ -28,6 +27,7 @@ async function init() {
         logLevel: 'debug',
       });
       setR(r);
+      listen(r);
       return () => {
         void r.close();
       };
@@ -58,14 +58,13 @@ async function init() {
       const username = usernameRef.current?.value ?? '';
       const content = contentRef.current?.value ?? '';
 
-      if (r) {
-        await r.mutate.createMessage({
-          id: nanoid(),
-          from: username,
-          content,
-          order,
-        });
-      }
+      await r?.mutate.createMessage({
+        id: nanoid(),
+        from: username,
+        content,
+        order,
+      });
+
       if (contentRef.current) {
         contentRef.current.value = '';
       }
@@ -74,7 +73,7 @@ async function init() {
     return (
       <div>
         <form onSubmit={onSubmit}>
-          <input ref={usernameRef} required /> says:{' '}
+          <input ref={usernameRef} required />says:
           <input ref={contentRef} required /> <input type="submit" />
         </form>
         {messages.map(([k, v]) => (
@@ -95,3 +94,23 @@ async function init() {
 }
 
 await init();
+
+function listen(rep: Replicache<M>) {
+  console.log('listening');
+  // Listen for pokes, and pull whenever we get one.
+  Pusher.logToConsole = true;
+  if (
+    !import.meta.env.VITE_PUBLIC_REPLICHAT_PUSHER_KEY ||
+    !import.meta.env.VITE_PUBLIC_REPLICHAT_PUSHER_CLUSTER
+  ) {
+    throw new Error('Missing PUSHER_KEY or PUSHER_CLUSTER in env');
+  }
+  const pusher = new Pusher(import.meta.env.VITE_PUBLIC_REPLICHAT_PUSHER_KEY, {
+    cluster: import.meta.env.VITE_PUBLIC_REPLICHAT_PUSHER_CLUSTER,
+  });
+  const channel = pusher.subscribe('default');
+  channel.bind('poke', async () => {
+    console.log('got poked');
+    await rep.pull();
+  });
+}

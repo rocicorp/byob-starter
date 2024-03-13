@@ -1,10 +1,23 @@
 import {serverID, tx, type Transaction} from './db';
 import type {PatchOperation, PullResponse} from 'replicache';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 
+export async function handlePull(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const resp = await pull(req, res);
+    res.json(resp);
+  } catch (e) {
+    next(e);
+  }
+}
 
-export async function pull(req: Request, res: Response) {
+
+async function pull(req: Request, res: Response) {
   const pull = req.body;
   console.log(`Processing pull`, JSON.stringify(pull));
   const {clientGroupID} = pull;

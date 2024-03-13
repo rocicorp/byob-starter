@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import {newDb} from 'pg-mem';
 import pgp, {IDatabase, ITask} from 'pg-promise';
 
@@ -42,15 +44,9 @@ async function initDB() {
 
 function getDB() {
     // Cache the database in the Node global so that it survives HMR.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - TS doesn't know about global.
     if (!global.__db) {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - TS doesn't know about global.
         global.__db = initDB();
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - TS doesn't know about global.
     // eslint-disable-next-line @typescript-eslint/ban-types
     return global.__db as IDatabase<{}>;
 }

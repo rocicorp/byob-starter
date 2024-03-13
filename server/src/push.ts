@@ -1,27 +1,23 @@
-import {z} from 'zod';
 import {serverID, tx, type Transaction} from './db';
 import type {MessageWithID} from 'shared';
 import type {MutationV1, PushRequestV1} from 'replicache';
-import type {Request, Response} from 'express';
-import {getPokeBackend} from './poke';
+import type {Request, Response, NextFunction} from 'express';
+import Pusher from 'pusher';
 
-const pushRequestSchema = z.object({
-  pushVersion: z.literal(1),
-  schemaVersion: z.string(),
-  clientGroupID: z.string(),
-  profileID: z.string(),
-  mutations: z.custom<MutationV1[]>(),
-});
-
-export async function push(req: Request, res: Response) {
-  // Validate and parse the request body
-  const parseResult = pushRequestSchema.safeParse(req.body);
-  if (!parseResult.success) {
-    res.status(400).send('Invalid request body');
-    return;
+export async function handlePush(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    await push(req, res);
+  } catch (e) {
+    next(e);
   }
+}
 
-  const push: PushRequestV1 = parseResult.data;
+async function push(req: Request, res: Response) {
+  const push: PushRequestV1 = req.body;
   console.log('Processing push', JSON.stringify(push));
   console.log('Processing push', JSON.stringify(push));
 
@@ -40,15 +36,16 @@ export async function push(req: Request, res: Response) {
         // convenient in development but you may want to reconsider as your app
         // gets close to production:
         // https://doc.replicache.dev/reference/server-push#error-handling
-        await tx(t => processMutation(t, push.clientGroupID, mutation, e as string));
+        await tx(t =>
+          processMutation(t, push.clientGroupID, mutation, e as string),
+        );
       }
 
       console.log('Processed mutation in', Date.now() - t1);
     }
 
     res.send('{}');
-
-    getPokeBackend().poke('ping');
+    await sendPoke();
   } catch (e) {
     console.error(e);
     res.status(500).send(e);
@@ -184,4 +181,25 @@ async function createMessage(
     ($1, $2, $3, $4, false, $5)`,
     [id, from, content, order, version],
   );
+}
+
+async function sendPoke() {
+  if (
+    !process.env.REPLICHAT_PUSHER_APP_ID ||
+    !process.env.REPLICHAT_PUSHER_KEY ||
+    !process.env.REPLICHAT_PUSHER_SECRET ||
+    !process.env.REPLICHAT_PUSHER_CLUSTER
+  ) {
+    throw new Error('Missing Pusher environment variables');
+  }
+  const pusher = new Pusher({
+    appId: process.env.REPLICHAT_PUSHER_APP_ID,
+    key: process.env.REPLICHAT_PUSHER_KEY,
+    secret: process.env.REPLICHAT_PUSHER_SECRET,
+    cluster: process.env.REPLICHAT_PUSHER_CLUSTER,
+    useTLS: true,
+  });
+  const t0 = Date.now();
+  await pusher.trigger('default', 'poke', {});
+  console.log('Sent poke in', Date.now() - t0);
 }

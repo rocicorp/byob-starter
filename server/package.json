@@ -7,6 +7,7 @@
     "express": "^4.18.1",
     "nanoid": "^4.0.0",
     "pg-promise": "^11.5.4",
+    "pusher": "^5.2.0",
     "replicache-transaction": "^0.3.3",
     "shared": "^0.1.0"
   },

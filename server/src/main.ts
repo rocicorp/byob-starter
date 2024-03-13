@@ -5,9 +5,8 @@ import express from 'express';
 import type Express from 'express';
 
 import fs from 'fs';
-import { handlePush } from './endpoints/replicache-push';
-import { handlePull } from './endpoints/replicache-pull';
-import { handlePoke } from './endpoints/handle-poke';
+import { handlePush } from './push';
+import { handlePull } from './pull';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const portEnv = parseInt(process.env.PORT || '');
@@ -32,7 +31,6 @@ app.use(express.urlencoded({extended: true}), express.json(), errorHandler);
 
 app.post('/api/replicache/push', handlePush);
 app.post('/api/replicache/pull', handlePull);
-app.get('/api/replicache/poke', handlePoke);
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(default_dist));
