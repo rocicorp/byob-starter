@@ -1,9 +1,14 @@
 import {nanoid} from 'nanoid';
 import React, {useEffect, useRef, useState} from 'react';
 import ReactDOM from 'react-dom/client';
-import {DeepReadonlyObject, Replicache, TEST_LICENSE_KEY} from 'replicache';
-import {M, mutators} from './mutators';
-import {Message} from 'shared';
+import {
+  DeepReadonlyObject,
+  Replicache,
+  TEST_LICENSE_KEY,
+  WriteTransaction,
+} from 'replicache';
+
+import {Message, MessageWithID} from 'shared';
 import {useSubscribe} from 'replicache-react';
 import Pusher from 'pusher-js';
 async function init() {
@@ -14,14 +19,25 @@ async function init() {
   }
 
   function Root() {
-    const [r, setR] = useState<Replicache<M> | null>(null);
+    const [r, setR] = useState<Replicache<any> | null>(null);
 
     useEffect(() => {
       console.log('updating replicache');
       const r = new Replicache({
         name: 'chat-user-id',
         licenseKey,
-        mutators,
+        mutators: {
+          async createMessage(
+            tx: WriteTransaction,
+            {id, from, content, order}: MessageWithID,
+          ) {
+            await tx.set(`message/${id}`, {
+              from,
+              content,
+              order,
+            });
+          },
+        },
         pushURL: `/api/replicache/push`,
         pullURL: `/api/replicache/pull`,
         logLevel: 'debug',
@@ -51,10 +67,12 @@ async function init() {
 
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      const last = (messages.length &&
-        messages[messages.length - 1][1]) as DeepReadonlyObject<Message>;
+      let last: Message | null = null;
+      if (messages.length) {
+        const lastMessageTuple = messages[messages.length - 1];
+        last = lastMessageTuple[1];
+      }
       const order = (last?.order ?? 0) + 1;
-
       const username = usernameRef.current?.value ?? '';
       const content = contentRef.current?.value ?? '';
 
@@ -73,7 +91,8 @@ async function init() {
     return (
       <div>
         <form onSubmit={onSubmit}>
-          <input ref={usernameRef} required />says:
+          <input ref={usernameRef} required />
+          says:
           <input ref={contentRef} required /> <input type="submit" />
         </form>
         {messages.map(([k, v]) => (
@@ -95,7 +114,7 @@ async function init() {
 
 await init();
 
-function listen(rep: Replicache<M>) {
+function listen(rep: Replicache) {
   console.log('listening');
   // Listen for pokes, and pull whenever we get one.
   Pusher.logToConsole = true;
