@@ -1,54 +1,39 @@
 import {nanoid} from 'nanoid';
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useRef} from 'react';
 import ReactDOM from 'react-dom/client';
-import {
-  DeepReadonlyObject,
-  Replicache,
-  TEST_LICENSE_KEY,
-  WriteTransaction,
-} from 'replicache';
+import {Replicache, TEST_LICENSE_KEY, WriteTransaction} from 'replicache';
 
 import {Message, MessageWithID} from 'shared';
 import {useSubscribe} from 'replicache-react';
 import Pusher from 'pusher-js';
-async function init() {
-  const licenseKey =
-    import.meta.env.VITE_REPLICACHE_LICENSE_KEY || TEST_LICENSE_KEY;
-  if (!licenseKey) {
-    throw new Error('Missing VITE_REPLICACHE_LICENSE_KEY');
-  }
 
-  function Root() {
-    const [r, setR] = useState<Replicache<any> | null>(null);
+const licenseKey =
+  import.meta.env.VITE_REPLICACHE_LICENSE_KEY || TEST_LICENSE_KEY;
+if (!licenseKey) {
+  throw new Error('Missing VITE_REPLICACHE_LICENSE_KEY');
+}
 
-    useEffect(() => {
-      console.log('updating replicache');
-      const r = new Replicache({
-        name: 'chat-user-id',
-        licenseKey,
-        mutators: {
-          async createMessage(
-            tx: WriteTransaction,
-            {id, from, content, order}: MessageWithID,
-          ) {
-            await tx.set(`message/${id}`, {
-              from,
-              content,
-              order,
-            });
-          },
-        },
-        pushURL: `/api/replicache/push`,
-        pullURL: `/api/replicache/pull`,
-        logLevel: 'debug',
+export const r = new Replicache({
+  name: 'chat-user-id',
+  licenseKey,
+  mutators: {
+    async createMessage(
+      tx: WriteTransaction,
+      {id, from, content, order}: MessageWithID,
+    ) {
+      await tx.set(`message/${id}`, {
+        from,
+        content,
+        order,
       });
-      setR(r);
-      listen(r);
-      return () => {
-        void r.close();
-      };
-    }, []);
+    },
+  },
+  pushURL: `/api/replicache/push`,
+  pullURL: `/api/replicache/pull`,
+});
 
+async function init() {
+  function Root() {
     const messages = useSubscribe(
       r,
       async tx => {
@@ -65,7 +50,7 @@ async function init() {
     const usernameRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLInputElement>(null);
 
-    const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const onSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       let last: Message | null = null;
       if (messages.length) {
@@ -111,7 +96,7 @@ async function init() {
     </React.StrictMode>,
   );
 }
-
+listen(r);
 await init();
 
 function listen(rep: Replicache) {

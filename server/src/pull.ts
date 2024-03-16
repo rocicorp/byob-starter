@@ -1,7 +1,6 @@
 import {serverID, tx, type Transaction} from './db';
 import type {PatchOperation, PullResponse} from 'replicache';
-import type { Request, Response, NextFunction } from 'express';
-
+import type {Request, Response, NextFunction} from 'express';
 
 export async function handlePull(
   req: Request,
@@ -15,7 +14,6 @@ export async function handlePull(
     next(e);
   }
 }
-
 
 async function pull(req: Request, res: Response) {
   const pull = req.body;
@@ -97,7 +95,6 @@ async function pull(req: Request, res: Response) {
   } finally {
     console.log('Processed pull in', Date.now() - t0);
   }
-
 }
 
 async function getLastMutationIDChanges(

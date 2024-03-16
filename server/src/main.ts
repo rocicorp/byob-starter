@@ -5,8 +5,8 @@ import express from 'express';
 import type Express from 'express';
 
 import fs from 'fs';
-import { handlePush } from './push';
-import { handlePull } from './pull';
+import {handlePush} from './push';
+import {handlePull} from './pull';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const portEnv = parseInt(process.env.PORT || '');
